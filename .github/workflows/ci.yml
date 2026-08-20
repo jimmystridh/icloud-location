@@ -73,5 +73,9 @@ jobs:
           sudo apt-get install --yes --no-install-recommends libudev-dev
       - name: Install stable Rust
         run: rustup toolchain install stable --profile minimal
+      - name: Configure Windows OpenSSL
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: '"OPENSSL_DIR=$env:ProgramFiles\OpenSSL" >> $env:GITHUB_ENV'
       - name: Build all features
         run: cargo +stable build --locked --workspace --all-features
