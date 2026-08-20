@@ -76,6 +76,8 @@ jobs:
       - name: Configure Windows OpenSSL
         if: runner.os == 'Windows'
         shell: pwsh
-        run: '"OPENSSL_DIR=$env:ProgramFiles\OpenSSL" >> $env:GITHUB_ENV'
+        run: |
+          "OPENSSL_INCLUDE_DIR=$env:ProgramFiles\OpenSSL\include" >> $env:GITHUB_ENV
+          "OPENSSL_LIB_DIR=$env:ProgramFiles\OpenSSL\lib\VC\x64\MD" >> $env:GITHUB_ENV
       - name: Build all features
         run: cargo +stable build --locked --workspace --all-features
