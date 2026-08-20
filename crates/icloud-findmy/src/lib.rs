@@ -22,3 +22,4 @@ pub use provider::FindMyProvider;
 #[cfg(feature = "security-key")]
 pub use security_key::UsbSecurityKeyAuthenticator;
 pub use security_key::{SecurityKeyAssertion, SecurityKeyAuthenticator, SecurityKeyRequest};
+pub use session::PortableSession;

@@ -30,7 +30,7 @@ jobs:
       - name: Install Rust toolchains
         run: |
           rustup toolchain install stable --profile minimal --component clippy,rustfmt
-          rustup toolchain install 1.85.0 --profile minimal --component clippy
+          rustup toolchain install 1.88.0 --profile minimal --component clippy
       - name: Install uv
         run: pipx install uv==0.7.2
       - name: Check formatting
@@ -38,7 +38,7 @@ jobs:
       - name: Lint stable Rust
         run: cargo +stable clippy --locked --workspace --all-targets --all-features -- -D warnings
       - name: Lint minimum supported Rust
-        run: cargo +1.85.0 clippy --locked --workspace --all-targets --all-features -- -D warnings
+        run: cargo +1.88.0 clippy --locked --workspace --all-targets --all-features -- -D warnings
       - name: Test default features
         run: cargo +stable test --locked --workspace
       - name: Test all features

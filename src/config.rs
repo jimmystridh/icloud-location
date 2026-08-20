@@ -117,20 +117,19 @@ impl AppConfig {
                 "tracked_from_zones must contain unique active configured zone IDs".into(),
             ));
         }
-        if let Some(waze) = &self.waze {
-            if !waze.minimum_distance_km.is_finite()
+        if let Some(waze) = &self.waze
+            && (!waze.minimum_distance_km.is_finite()
                 || !waze.maximum_distance_km.is_finite()
                 || waze.minimum_distance_km < 0.0
                 || waze.maximum_distance_km < waze.minimum_distance_km
                 || !matches!(
                     waze.region.trim().to_ascii_lowercase().as_str(),
                     "us" | "ca" | "na" | "am" | "il" | "eu" | "au" | "row" | "rest_of_world"
-                )
-            {
-                return Err(ConfigError::Invalid(
-                    "Waze region and distance bounds are invalid".into(),
-                ));
-            }
+                ))
+        {
+            return Err(ConfigError::Invalid(
+                "Waze region and distance bounds are invalid".into(),
+            ));
         }
         let mut sources = HashSet::new();
         for source in &self.external_sources {

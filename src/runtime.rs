@@ -214,10 +214,10 @@ impl TrackingRuntime {
     ///
     /// Returns an error if the pause event cannot be emitted.
     pub fn pause(&mut self, device_id: Option<&str>) -> Result<(), RuntimeError> {
-        if let Some(device_id) = device_id {
-            if !self.state.devices.contains_key(device_id) {
-                return Err(RuntimeError::UnknownDevice(device_id.into()));
-            }
+        if let Some(device_id) = device_id
+            && !self.state.devices.contains_key(device_id)
+        {
+            return Err(RuntimeError::UnknownDevice(device_id.into()));
         }
         for state in self.selected_devices_mut(device_id) {
             state.paused = true;
@@ -242,10 +242,10 @@ impl TrackingRuntime {
         device_id: Option<&str>,
         now: DateTime<Utc>,
     ) -> Result<(), RuntimeError> {
-        if let Some(device_id) = device_id {
-            if !self.state.devices.contains_key(device_id) {
-                return Err(RuntimeError::UnknownDevice(device_id.into()));
-            }
+        if let Some(device_id) = device_id
+            && !self.state.devices.contains_key(device_id)
+        {
+            return Err(RuntimeError::UnknownDevice(device_id.into()));
         }
         for state in self.selected_devices_mut(device_id) {
             state.paused = false;
@@ -772,56 +772,54 @@ impl TrackingRuntime {
                 let location_was_accepted = quality
                     .as_ref()
                     .is_some_and(|quality| !matches!(quality, LocationQuality::Rejected(_)));
-                if location_was_accepted {
-                    if let Some(location) = state.current_location.as_ref() {
-                        let accuracy = location.horizontal_accuracy_meters.unwrap_or_default();
-                        let selection = self.config.zones.select(location.coordinates, accuracy)?;
-                        state.zone_distances_km = selection
-                            .distances
-                            .iter()
-                            .map(|distance| {
-                                (distance.zone_id.clone(), distance.distance_meters / 1_000.0)
-                            })
-                            .collect();
-                        let tracking_zone = self
-                            .config
-                            .base_zone_id
-                            .as_deref()
-                            .and_then(|base_zone_id| {
-                                selection
-                                    .distances
-                                    .iter()
-                                    .find(|distance| distance.zone_id == base_zone_id)
-                            })
-                            .or_else(|| selection.distances.first());
-                        closest_distance_km =
-                            tracking_zone.map(|distance| distance.distance_meters / 1_000.0);
-                        closest_zone_id = tracking_zone.map(|distance| distance.zone_id.clone());
-                        let selected_zone = match external_trigger.as_ref() {
-                            Some(ExternalTrigger::ZoneEntered(zone_id)) => Some(zone_id.clone()),
-                            Some(ExternalTrigger::ZoneExited(zone_id))
-                                if state.current_zone.as_deref() == Some(zone_id.as_str()) =>
-                            {
-                                None
-                            }
-                            Some(ExternalTrigger::ZoneExited(_)) => state.current_zone.clone(),
-                            Some(ExternalTrigger::Manual | ExternalTrigger::Background) | None => {
-                                selection.selected_zone.clone()
-                            }
-                        };
-                        policy_events.extend(state.zone_transition.update(
-                            &device_id,
-                            selected_zone.as_deref(),
-                            now,
-                            &self.config.pass_through,
-                        ));
-                        state.current_zone = state.zone_transition.current_zone.clone();
-                        selected_regular_zone.clone_from(&state.current_zone);
-                        observation = Some((
-                            location.coordinates,
-                            state.distance_moved_meters.unwrap_or_default(),
-                        ));
-                    }
+                if location_was_accepted && let Some(location) = state.current_location.as_ref() {
+                    let accuracy = location.horizontal_accuracy_meters.unwrap_or_default();
+                    let selection = self.config.zones.select(location.coordinates, accuracy)?;
+                    state.zone_distances_km = selection
+                        .distances
+                        .iter()
+                        .map(|distance| {
+                            (distance.zone_id.clone(), distance.distance_meters / 1_000.0)
+                        })
+                        .collect();
+                    let tracking_zone = self
+                        .config
+                        .base_zone_id
+                        .as_deref()
+                        .and_then(|base_zone_id| {
+                            selection
+                                .distances
+                                .iter()
+                                .find(|distance| distance.zone_id == base_zone_id)
+                        })
+                        .or_else(|| selection.distances.first());
+                    closest_distance_km =
+                        tracking_zone.map(|distance| distance.distance_meters / 1_000.0);
+                    closest_zone_id = tracking_zone.map(|distance| distance.zone_id.clone());
+                    let selected_zone = match external_trigger.as_ref() {
+                        Some(ExternalTrigger::ZoneEntered(zone_id)) => Some(zone_id.clone()),
+                        Some(ExternalTrigger::ZoneExited(zone_id))
+                            if state.current_zone.as_deref() == Some(zone_id.as_str()) =>
+                        {
+                            None
+                        }
+                        Some(ExternalTrigger::ZoneExited(_)) => state.current_zone.clone(),
+                        Some(ExternalTrigger::Manual | ExternalTrigger::Background) | None => {
+                            selection.selected_zone.clone()
+                        }
+                    };
+                    policy_events.extend(state.zone_transition.update(
+                        &device_id,
+                        selected_zone.as_deref(),
+                        now,
+                        &self.config.pass_through,
+                    ));
+                    state.current_zone = state.zone_transition.current_zone.clone();
+                    selected_regular_zone.clone_from(&state.current_zone);
+                    observation = Some((
+                        location.coordinates,
+                        state.distance_moved_meters.unwrap_or_default(),
+                    ));
                 }
             }
 
@@ -904,8 +902,8 @@ impl TrackingRuntime {
                             .await
                         {
                             Ok(calculated) => {
-                                if let Some(history) = self.route_history.as_ref() {
-                                    if let Err(error) = history
+                                if let Some(history) = self.route_history.as_ref()
+                                    && let Err(error) = history
                                         .store(&RouteHistoryEntry {
                                             id: None,
                                             zone_id: zone_id.to_owned(),
@@ -915,11 +913,10 @@ impl TrackingRuntime {
                                             use_count: 1,
                                         })
                                         .await
-                                    {
-                                        policy_events.push(TrackingEvent::Warning {
-                                            message: format!("route-history store failed: {error}"),
-                                        });
-                                    }
+                                {
+                                    policy_events.push(TrackingEvent::Warning {
+                                        message: format!("route-history store failed: {error}"),
+                                    });
                                 }
                                 estimate = Some(calculated);
                             }

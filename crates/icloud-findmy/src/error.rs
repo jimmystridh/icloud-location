@@ -53,6 +53,18 @@ pub enum Error {
     #[error("session storage error: {0}")]
     Session(String),
 
+    #[error("portable session archive is invalid: {0}")]
+    InvalidPortableSession(String),
+
+    #[error("portable session archive exceeds the {max_bytes}-byte safety limit")]
+    PortableSessionTooLarge { max_bytes: usize },
+
+    #[error("portable session archive format version {0} is not supported")]
+    UnsupportedPortableSessionVersion(u32),
+
+    #[error("portable session archive belongs to a different Apple account")]
+    PortableSessionAccountMismatch,
+
     #[error(transparent)]
     Http(#[from] reqwest::Error),
 

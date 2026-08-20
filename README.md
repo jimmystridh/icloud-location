@@ -57,6 +57,33 @@ password. Tokens and cookies are stored per account using a hashed directory
 name, atomic replacement, and owner-only Unix permissions. Override the root
 with `--session-root` or `ICLOUD_SESSION_ROOT`.
 
+Server applications can keep the same authentication state outside the local
+filesystem by using a portable in-memory session:
+
+```rust,no_run
+use icloud_location::{ClientBuilder, PortableSession};
+
+# fn example(encrypted_storage_payload: Vec<u8>) -> icloud_location::Result<()> {
+# let decrypted_archive = encrypted_storage_payload;
+let session = PortableSession::from_bytes(decrypted_archive)?;
+let client = ClientBuilder::new("name@example.com")
+    .portable_session(session)
+    .build()?;
+let updated_archive = client.export_portable_session()?;
+# let _bytes_to_encrypt = updated_archive.as_bytes();
+# Ok(())
+# }
+```
+
+`ClientBuilder::in_memory()` starts without an existing archive. Portable
+archives are bounded and bound to the normalized account username, include the
+complete cookie store, and never include the configured password. The account
+binding prevents accidental cross-account reuse; it does not authenticate the
+archive. Archives contain sensitive tokens in plaintext, so the embedding
+application must protect them with authenticated encryption before durable
+storage and must not log their bytes. The type's `Debug` output is redacted and
+its owned byte buffer is zeroized when dropped.
+
 When built with `security-key`, a connected FIDO2 USB HID authenticator can be
 used with `login --security-key`.
 

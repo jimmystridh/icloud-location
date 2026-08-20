@@ -23,7 +23,7 @@ use crate::coordinates::ChinaCoordinates;
 use crate::error::{Error, Result};
 use crate::model::{Device, devices_from_response};
 use crate::security_key::{SecurityKeyAuthenticator, SecurityKeyRequest};
-use crate::session::{SessionData, SessionStore};
+use crate::session::{PortableSession, SessionData, SessionStore};
 use crate::srp::{AppleSrp, SrpInitResponse};
 
 const OAUTH_CLIENT_ID: &str = "d39ba9916b7251055b22c7f910e2ea796ee65e98b2ddecea8f5dde8d9d1a815d";
@@ -47,9 +47,15 @@ pub enum Region {
 pub struct ClientBuilder {
     username: String,
     password: Option<SecretString>,
-    session_root: Option<PathBuf>,
+    session_persistence: SessionPersistence,
     region: Region,
     timeout: Duration,
+}
+
+#[derive(Clone, Debug)]
+enum SessionPersistence {
+    Disk { root: Option<PathBuf> },
+    Memory { portable: Option<PortableSession> },
 }
 
 impl ClientBuilder {
@@ -58,7 +64,7 @@ impl ClientBuilder {
         Self {
             username: username.into(),
             password: None,
-            session_root: None,
+            session_persistence: SessionPersistence::Disk { root: None },
             region: Region::Global,
             timeout: Duration::from_secs(30),
         }
@@ -87,7 +93,31 @@ impl ClientBuilder {
 
     #[must_use]
     pub fn session_root(mut self, path: impl Into<PathBuf>) -> Self {
-        self.session_root = Some(path.into());
+        self.session_persistence = SessionPersistence::Disk {
+            root: Some(path.into()),
+        };
+        self
+    }
+
+    /// Uses an ephemeral session store that never reads or writes session files.
+    ///
+    /// Call [`ICloudClient::export_portable_session`] after each operation whose
+    /// resulting authentication state must survive the current client instance.
+    #[must_use]
+    pub fn in_memory(mut self) -> Self {
+        self.session_persistence = SessionPersistence::Memory { portable: None };
+        self
+    }
+
+    /// Restores a portable archive into an ephemeral session store.
+    ///
+    /// This mode never reads or writes session files. The archive's account
+    /// binding is verified during [`Self::build`].
+    #[must_use]
+    pub fn portable_session(mut self, session: PortableSession) -> Self {
+        self.session_persistence = SessionPersistence::Memory {
+            portable: Some(session),
+        };
         self
     }
 
@@ -118,12 +148,29 @@ impl ClientBuilder {
         }
 
         let endpoints = Endpoints::new(self.region)?;
-        let session_store = SessionStore::new(self.session_root, &username)?;
-        let mut session = session_store.load_state()?;
+        let (session_store, mut session, cookies) = match self.session_persistence {
+            SessionPersistence::Disk { root } => {
+                let store = SessionStore::new(root, &username)?;
+                let session = store.load_state()?;
+                let cookies = store.load_cookies()?;
+                (store, session, cookies)
+            }
+            SessionPersistence::Memory { portable: None } => {
+                let store = SessionStore::memory();
+                let session = store.load_state()?;
+                let cookies = store.load_cookies()?;
+                (store, session, cookies)
+            }
+            SessionPersistence::Memory {
+                portable: Some(portable),
+            } => {
+                let (session, cookies) = portable.restore_for(&username)?;
+                (SessionStore::memory(), session, cookies)
+            }
+        };
         if session.client_id.is_empty() {
             session.client_id = format!("auth-{}", uuid::Uuid::new_v4());
         }
-        let cookies = session_store.load_cookies()?;
 
         let home_origin = endpoints.home.origin().ascii_serialization();
         let mut default_headers = HeaderMap::new();
@@ -197,6 +244,21 @@ impl ICloudClient {
     #[must_use]
     pub fn cached_challenge(&self) -> Option<&TwoFactorChallenge> {
         self.session.challenge_metadata.as_ref()
+    }
+
+    /// Exports the complete current session and cookie store as an opaque,
+    /// account-bound archive suitable for restoring an in-memory client.
+    ///
+    /// The archive contains sensitive authentication material but never the
+    /// configured password. Protect it with authenticated encryption before
+    /// durable storage and do not log it.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the cookie lock is poisoned, cookie serialization
+    /// fails, or the resulting archive exceeds [`PortableSession::MAX_BYTES`].
+    pub fn export_portable_session(&self) -> Result<PortableSession> {
+        PortableSession::capture(&self.username, &self.session, &self.cookies)
     }
 
     #[must_use]
@@ -734,13 +796,19 @@ impl ICloudClient {
         }
     }
 
-    /// Removes the locally persisted tokens and cookies for this account.
+    /// Clears the client's tokens and cookies and removes its disk session when
+    /// disk persistence is enabled.
     ///
     /// # Errors
     ///
-    /// Returns an error when the session directory cannot be removed.
+    /// Returns an error when the cookie lock is poisoned or the session
+    /// directory cannot be removed.
     pub fn clear_session(&mut self) -> Result<()> {
         self.session_store.clear()?;
+        self.cookies
+            .lock()
+            .map_err(|_| Error::Session("cookie store lock is poisoned".into()))?
+            .clear();
         let client_id = self.session.client_id.clone();
         self.session = SessionData {
             client_id,
@@ -1353,7 +1421,7 @@ fn required_action_value<'a>(value: &'a str, name: &str) -> Result<&'a str> {
 #[cfg(test)]
 mod tests {
     use std::fs;
-    use std::io::{Read, Write};
+    use std::io::{BufReader, Read, Write};
     use std::net::{TcpListener, TcpStream};
     use std::thread;
     use std::time::{SystemTime, UNIX_EPOCH};
@@ -1425,6 +1493,59 @@ mod tests {
                 .unwrap()
                 .as_nanos()
         ))
+    }
+
+    fn complete_portable_session_data() -> SessionData {
+        SessionData {
+            client_id: "auth-portable-client".into(),
+            account_country: Some("SE".into()),
+            session_id: Some("portable-session-id".into()),
+            session_token: Some("portable-session-token".into()),
+            trust_token: Some("portable-trust-token".into()),
+            scnt: Some("portable-scnt".into()),
+            dsid: Some("12345".into()),
+            findme_url: Some("https://find.example.invalid/".into()),
+            account_name: Some("Alice Example".into()),
+            challenge_metadata: Some(TwoFactorChallenge {
+                trusted_phone_numbers: vec![TrustedPhoneNumber {
+                    id: 7,
+                    last_two_digits: Some("42".into()),
+                    number_with_dial_code: Some("+•• ••• ••42".into()),
+                }],
+                security_key_names: vec!["Primary key".into()],
+            }),
+            pending_terms_locale: Some("sv_SE".into()),
+            last_trusted_at: Some(
+                DateTime::parse_from_rfc3339("2026-08-20T08:00:00Z")
+                    .unwrap()
+                    .with_timezone(&Utc),
+            ),
+            last_authentication_method: Some("trusted_device".into()),
+        }
+    }
+
+    fn complete_portable_cookie_store() -> cookie_store::CookieStore {
+        let cookie_json = br#"[
+          {
+            "raw_cookie": "persistent=secret-cookie; SameSite=None; Secure; Path=/; Expires=Tue, 03 Aug 2100 00:38:37 GMT",
+            "path": ["/", true],
+            "domain": {"HostOnly": "apple.com"},
+            "expires": {"AtUtc": "2100-08-03T00:38:37Z"}
+          },
+          {
+            "raw_cookie": "workflow=transient-cookie; Secure; Path=/",
+            "path": ["/", true],
+            "domain": {"HostOnly": "apple.com"},
+            "expires": "SessionEnd"
+          },
+          {
+            "raw_cookie": "expired=still-part-of-the-store; Secure; Path=/; Expires=Thu, 03 Aug 2000 00:38:37 GMT",
+            "path": ["/", true],
+            "domain": {"HostOnly": "apple.com"},
+            "expires": {"AtUtc": "2000-08-03T00:38:37Z"}
+          }
+        ]"#;
+        cookie_store::serde::json::load_all(BufReader::new(&cookie_json[..])).unwrap()
     }
 
     #[test]
@@ -2457,6 +2578,151 @@ mod tests {
         assert!(matches!(status, AuthenticationStatus::Authenticated(_)));
         assert!(request.contains("saved-trust-token"));
         fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn portable_session_round_trips_complete_state_and_all_cookies_in_memory() {
+        let root = temporary_root("portable-session-no-disk-test");
+        let password = "password-must-never-enter-the-archive";
+        let mut client = ClientBuilder::new(" Alice@Example.Invalid ")
+            .password(password)
+            .session_root(&root)
+            .in_memory()
+            .build()
+            .unwrap();
+        client.session = complete_portable_session_data();
+        *client.cookies.lock().unwrap() = complete_portable_cookie_store();
+
+        let portable = client.export_portable_session().unwrap();
+        let archive = String::from_utf8_lossy(portable.as_bytes());
+        let debug = format!("{portable:?}");
+
+        assert_eq!(PortableSession::FORMAT_VERSION, 1);
+        assert!(portable.len() <= PortableSession::MAX_BYTES);
+        assert!(!portable.is_empty());
+        assert!(!archive.contains(password));
+        assert!(!debug.contains("portable-session-token"));
+        assert!(!debug.contains("portable-trust-token"));
+        assert!(debug.contains("[REDACTED]"));
+        assert!(!root.exists());
+
+        let mut restored = ClientBuilder::new("alice@example.invalid")
+            .session_root(&root)
+            .portable_session(portable)
+            .build()
+            .unwrap();
+
+        assert_eq!(restored.session.client_id, "auth-portable-client");
+        assert_eq!(
+            restored.session.session_token.as_deref(),
+            Some("portable-session-token")
+        );
+        assert_eq!(
+            restored.session.trust_token.as_deref(),
+            Some("portable-trust-token")
+        );
+        assert_eq!(
+            restored.session.pending_terms_locale.as_deref(),
+            Some("sv_SE")
+        );
+        let challenge = restored.cached_challenge().unwrap();
+        assert_eq!(challenge.trusted_phone_numbers[0].id, 7);
+        assert_eq!(
+            challenge.trusted_phone_numbers[0]
+                .last_two_digits
+                .as_deref(),
+            Some("42")
+        );
+        assert_eq!(challenge.security_key_names, ["Primary key"]);
+        let cookies = restored.cookies.lock().unwrap();
+        assert_eq!(cookies.iter_any().count(), 3);
+        assert_eq!(cookies.iter_unexpired().count(), 2);
+        assert!(
+            cookies.iter_any().any(|cookie| {
+                cookie.name() == "workflow" && cookie.value() == "transient-cookie"
+            })
+        );
+        drop(cookies);
+        assert!(!root.exists());
+
+        restored.clear_session().unwrap();
+        assert!(restored.session.session_token.is_none());
+        assert!(restored.session.pending_terms_locale.is_none());
+        assert!(restored.cached_challenge().is_none());
+        assert_eq!(restored.cookies.lock().unwrap().iter_any().count(), 0);
+        assert!(!root.exists());
+    }
+
+    #[test]
+    fn portable_session_rejects_malformed_oversized_and_wrong_account_archives() {
+        assert!(matches!(
+            PortableSession::from_slice(b"not-json"),
+            Err(Error::InvalidPortableSession(_))
+        ));
+        assert!(matches!(
+            PortableSession::from_bytes(vec![b'x'; PortableSession::MAX_BYTES + 1]),
+            Err(Error::PortableSessionTooLarge { .. })
+        ));
+
+        let source = ClientBuilder::new("alice@example.invalid")
+            .in_memory()
+            .build()
+            .unwrap();
+        let portable = source.export_portable_session().unwrap();
+        let mut unsupported: Value = serde_json::from_slice(portable.as_bytes()).unwrap();
+        unsupported["version"] = json!(PortableSession::FORMAT_VERSION + 1);
+        assert!(matches!(
+            PortableSession::from_bytes(serde_json::to_vec(&unsupported).unwrap()),
+            Err(Error::UnsupportedPortableSessionVersion(_))
+        ));
+
+        let mut injected_password: Value = serde_json::from_slice(portable.as_bytes()).unwrap();
+        injected_password["session"]["password"] = json!("should-be-rejected");
+        assert!(matches!(
+            PortableSession::from_bytes(serde_json::to_vec(&injected_password).unwrap()),
+            Err(Error::InvalidPortableSession(_))
+        ));
+
+        let mut invalid_cookies: Value = serde_json::from_slice(portable.as_bytes()).unwrap();
+        invalid_cookies["cookies"] = json!({ "not": "a cookie archive" });
+        assert!(matches!(
+            PortableSession::from_bytes(serde_json::to_vec(&invalid_cookies).unwrap()),
+            Err(Error::InvalidPortableSession(_))
+        ));
+
+        let mut oversized_cookie: Value = serde_json::from_slice(portable.as_bytes()).unwrap();
+        oversized_cookie["cookies"] = json!([{
+            "raw_cookie": format!("oversized={}", "x".repeat(9 * 1024)),
+            "path": ["/", true],
+            "domain": {"HostOnly": "apple.com"},
+            "expires": "SessionEnd"
+        }]);
+        assert!(matches!(
+            PortableSession::from_bytes(serde_json::to_vec(&oversized_cookie).unwrap()),
+            Err(Error::InvalidPortableSession(_))
+        ));
+
+        let wrong_account = ClientBuilder::new("bob@example.invalid")
+            .portable_session(portable)
+            .build();
+        assert!(matches!(
+            wrong_account,
+            Err(Error::PortableSessionAccountMismatch)
+        ));
+    }
+
+    #[test]
+    fn portable_session_export_enforces_the_archive_size_limit() {
+        let mut client = ClientBuilder::new("test@example.invalid")
+            .in_memory()
+            .build()
+            .unwrap();
+        client.session.account_name = Some("x".repeat(PortableSession::MAX_BYTES));
+
+        assert!(matches!(
+            client.export_portable_session(),
+            Err(Error::PortableSessionTooLarge { .. })
+        ));
     }
 
     #[test]
