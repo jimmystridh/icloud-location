@@ -1,0 +1,25 @@
+[package]
+name = "icloud-tracking"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+description = "Pure tracking, interval, and zone policy for iCloud location data"
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+
+[dependencies]
+chrono = { version = "0.4", features = ["serde"] }
+icloud-location-core = { version = "0.1.0", path = "../icloud-location-core" }
+icloud-routing = { version = "0.1.0", path = "../icloud-routing" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "2.0"
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+all = "warn"
+pedantic = "warn"

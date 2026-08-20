@@ -1,0 +1,48 @@
+{
+  "zones": [
+    {
+      "id": "home",
+      "latitude": 10.0,
+      "longitude": 20.0,
+      "radius_meters": 200.0,
+      "passive": false
+    },
+    {
+      "id": "desk",
+      "latitude": 10.0,
+      "longitude": 20.0,
+      "radius_meters": 30.0,
+      "passive": false
+    },
+    {
+      "id": "passive",
+      "latitude": 10.001,
+      "longitude": 20.001,
+      "radius_meters": 500.0,
+      "passive": true
+    }
+  ],
+  "cases": [
+    {
+      "name": "smallest_overlapping_zone_wins",
+      "latitude": 10.0,
+      "longitude": 20.0,
+      "horizontal_accuracy_meters": 10.0,
+      "expected_zone": "desk"
+    },
+    {
+      "name": "accuracy_allows_zone_boundary",
+      "latitude": 10.00182,
+      "longitude": 20.0,
+      "horizontal_accuracy_meters": 20.0,
+      "expected_zone": "home"
+    },
+    {
+      "name": "outside_all_active_zones",
+      "latitude": 10.01,
+      "longitude": 20.01,
+      "horizontal_accuracy_meters": 5.0,
+      "expected_zone": null
+    }
+  ]
+}

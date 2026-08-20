@@ -1,0 +1,40 @@
+{
+  "content": [
+    {
+      "batteryLevel": 0.786,
+      "batteryStatus": "NotCharging",
+      "deviceClass": "iPhone",
+      "deviceDisplayName": "iPhone Example Pro",
+      "deviceStatus": "200",
+      "fmlyShare": false,
+      "id": "sanitized-owner-device-id",
+      "location": {
+        "horizontalAccuracy": 7.5,
+        "isOld": false,
+        "latitude": 10.123456,
+        "longitude": 20.654321,
+        "positionType": "GPS",
+        "timeStamp": 1750000000123,
+        "verticalAccuracy": 4.0
+      },
+      "lowPowerMode": false,
+      "modelDisplayName": "iPhone",
+      "name": "Example’s\u00a0iPhone",
+      "rawDeviceModel": "iPhone99,1"
+    },
+    {
+      "batteryLevel": 0.42,
+      "batteryStatus": "Charging",
+      "deviceClass": "Watch",
+      "deviceDisplayName": "Example Watch",
+      "deviceStatus": 201,
+      "fmlyShare": true,
+      "id": "sanitized-family-device-id",
+      "location": null,
+      "lowPowerMode": null,
+      "modelDisplayName": "Watch",
+      "name": "Family Watch",
+      "rawDeviceModel": "Watch99,1"
+    }
+  ]
+}

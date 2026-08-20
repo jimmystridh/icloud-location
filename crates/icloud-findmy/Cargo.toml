@@ -1,0 +1,47 @@
+[package]
+name = "icloud-findmy"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+description = "Apple authentication and Find My protocol client"
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+
+[features]
+default = []
+security-key = ["dep:futures", "dep:webauthn-authenticator-rs"]
+
+[dependencies]
+base64 = "0.22"
+chrono = { version = "0.4", features = ["serde"] }
+cookie_store = "0.22"
+directories = "6.0"
+getrandom = "0.4"
+futures = { version = "0.3", optional = true }
+icloud-location-core = { version = "0.1.0", path = "../icloud-location-core" }
+num-bigint = "0.5"
+num-traits = "0.2"
+pbkdf2 = { version = "0.13", features = ["sha2"] }
+reqwest = { version = "0.13", default-features = false, features = ["cookies", "json", "query", "rustls"] }
+reqwest_cookie_store = "0.10"
+secrecy = "0.10"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+sha2 = "0.11"
+thiserror = "2.0"
+tokio = { version = "1.53", features = ["macros", "rt-multi-thread", "sync"] }
+url = "2.5"
+uuid = { version = "1.24", features = ["v4"] }
+webauthn-authenticator-rs = { version = "=0.5.4", optional = true, features = ["ui-cli", "usb"] }
+
+[dev-dependencies]
+hex = "0.4"
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+all = "warn"
+pedantic = "warn"

@@ -1,0 +1,75 @@
+{
+  "source": "custom_components/icloud3/tracking/determine_interval.py",
+  "cases": [
+    {
+      "name": "near_zone_after_driving",
+      "distance_km": 1.5,
+      "went_beyond_three_km": true,
+      "direction_known": true,
+      "expected_seconds": 15
+    },
+    {
+      "name": "under_two_km",
+      "distance_km": 1.5,
+      "went_beyond_three_km": false,
+      "direction_known": true,
+      "expected_seconds": 60
+    },
+    {
+      "name": "under_three_and_half_km",
+      "distance_km": 3.0,
+      "went_beyond_three_km": false,
+      "direction_known": true,
+      "expected_seconds": 90
+    },
+    {
+      "name": "unknown_direction",
+      "distance_km": 30.0,
+      "went_beyond_three_km": false,
+      "direction_known": false,
+      "expected_seconds": 150
+    },
+    {
+      "name": "under_five_km",
+      "distance_km": 4.0,
+      "went_beyond_three_km": false,
+      "direction_known": true,
+      "expected_seconds": 120
+    },
+    {
+      "name": "under_eight_km",
+      "distance_km": 7.0,
+      "went_beyond_three_km": false,
+      "direction_known": true,
+      "expected_seconds": 180
+    },
+    {
+      "name": "under_twelve_km",
+      "distance_km": 10.0,
+      "went_beyond_three_km": false,
+      "direction_known": true,
+      "expected_seconds": 300
+    },
+    {
+      "name": "under_twenty_km",
+      "distance_km": 15.0,
+      "went_beyond_three_km": false,
+      "direction_known": true,
+      "expected_seconds": 600
+    },
+    {
+      "name": "under_forty_km",
+      "distance_km": 30.0,
+      "went_beyond_three_km": false,
+      "direction_known": true,
+      "expected_seconds": 900
+    },
+    {
+      "name": "over_one_hundred_fifty_km",
+      "distance_km": 160.0,
+      "went_beyond_three_km": false,
+      "direction_known": true,
+      "expected_seconds": 3600
+    }
+  ]
+}

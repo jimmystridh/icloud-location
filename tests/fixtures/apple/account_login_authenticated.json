@@ -1,0 +1,18 @@
+{
+  "dsInfo": {
+    "dsid": "10000000000000001",
+    "fullName": "Example Person",
+    "hsaVersion": 2,
+    "languageCode": "en_US",
+    "locked": false
+  },
+  "hsaChallengeRequired": false,
+  "hsaTrustedBrowser": true,
+  "success": true,
+  "termsUpdateNeeded": false,
+  "webservices": {
+    "findme": {
+      "url": "https://example.invalid/findme/"
+    }
+  }
+}

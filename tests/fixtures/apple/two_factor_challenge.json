@@ -1,0 +1,26 @@
+{
+  "fsaChallenge": {
+    "challenge": "c2FuaXRpemVkLWNoYWxsZW5nZQ",
+    "keyHandles": [
+      "c2FuaXRpemVkLWtleS1oYW5kbGU"
+    ],
+    "rpId": "apple.com"
+  },
+  "keyNames": [
+    "Example security key"
+  ],
+  "phoneNumberVerification": {
+    "trustedPhoneNumbers": [
+      {
+        "id": 1,
+        "lastTwoDigits": "42",
+        "numberWithDialCode": "+•• ••• ••42"
+      },
+      {
+        "id": 2,
+        "lastTwoDigits": "17",
+        "numberWithDialCode": "+•• ••• ••17"
+      }
+    ]
+  }
+}

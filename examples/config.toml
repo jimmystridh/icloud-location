@@ -1,0 +1,40 @@
+version = 1
+base_zone_id = "home"
+tracked_from_zones = ["home", "work"]
+
+[[accounts]]
+username = "name@example.com"
+region = "global"
+device_ids = []
+
+[[zones]]
+id = "home"
+latitude = 59.3293
+longitude = 18.0686
+radius_meters = 100.0
+passive = false
+
+[[zones]]
+id = "work"
+latitude = 59.3320
+longitude = 18.0640
+radius_meters = 125.0
+passive = false
+
+[tracking]
+tick_seconds = 5
+prefetch_seconds = 15
+default_interval_seconds = 60
+maximum_interval_seconds = 7200
+in_zone_interval_seconds = 120
+stationary_interval_seconds = 300
+exit_zone_interval_seconds = 30
+fixed_interval_seconds = 0
+gps_accuracy_threshold_meters = 100.0
+old_location_adjustment_seconds = 0
+old_location_maximum_seconds = 0
+pass_through_delay_seconds = 60
+stationary_enabled = true
+stationary_still_seconds = 1800
+stationary_radius_meters = 100.0
+travel_time_factor = 0.5

@@ -1,0 +1,13 @@
+{
+  "source": "custom_components/icloud3/tracking/determine_interval.py",
+  "ranges": [
+    { "minimum_count": 0, "seconds": 5 },
+    { "minimum_count": 2, "seconds": 15 },
+    { "minimum_count": 4, "seconds": 30 },
+    { "minimum_count": 8, "seconds": 60 },
+    { "minimum_count": 12, "seconds": 300 },
+    { "minimum_count": 16, "seconds": 900 },
+    { "minimum_count": 20, "seconds": 1800 },
+    { "minimum_count": 24, "seconds": 3600 }
+  ]
+}

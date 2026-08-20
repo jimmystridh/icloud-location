@@ -1,0 +1,48 @@
+[
+    {
+      "device_id": "sanitized-owner-device-id",
+      "sample": {
+        "coordinates": {
+          "latitude": 10.1235,
+          "longitude": 20.6543
+        },
+        "horizontal_accuracy_meters": 12.0,
+        "vertical_accuracy_meters": null,
+        "timestamp": "2025-06-15T15:06:45Z",
+        "source": {
+          "external": "example_phone_bridge"
+        },
+        "is_old": false
+      },
+      "battery": {
+        "level_percent": 78,
+        "status": null,
+        "low_power_mode": null
+      },
+      "trigger": {
+        "zone_entered": "home"
+      }
+    },
+    {
+      "device_id": "sanitized-owner-device-id",
+      "sample": {
+        "coordinates": {
+          "latitude": 10.2,
+          "longitude": 20.7
+        },
+        "horizontal_accuracy_meters": 250.0,
+        "vertical_accuracy_meters": null,
+        "timestamp": "2025-06-15T15:05:00Z",
+        "source": {
+          "external": "example_phone_bridge"
+        },
+        "is_old": false
+      },
+      "battery": {
+        "level_percent": 77,
+        "status": null,
+        "low_power_mode": null
+      },
+      "trigger": null
+    }
+]
