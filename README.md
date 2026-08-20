@@ -23,9 +23,8 @@ authorized to access.
 - `icloud-location`: public facade, standalone scheduler, configuration, and
   CLI.
 
-The project deliberately contains no Home Assistant entities, registries,
-dashboards, services, or config flows. Typed snapshots, events, TOML, and Rust
-interfaces replace those integration points.
+Typed snapshots, events, TOML, and Rust interfaces keep protocol access,
+tracking policy, routing, and presentation concerns separate.
 
 ## Build
 
@@ -171,9 +170,8 @@ Set `--state-file` or `ICLOUD_STATE_FILE` to choose the state path.
 
 ## External location sources
 
-Home Assistant mobile-app entities are replaced by a generic typed update.
-`ingest` accepts one JSON object, an array, or NDJSON from a file or standard
-input:
+External GPS integrations use a generic typed update. `ingest` accepts one JSON
+object, an array, or NDJSON from a file or standard input:
 
 ```console
 icloud-location ingest --input updates.ndjson --config config.toml
